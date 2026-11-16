@@ -37,7 +37,7 @@
 在 skillbox 仓库根目录执行：
 
 ```bash
-git clone https://github.com/<your-name>/skillbox.git && cd skillbox
+git clone https://github.com/Ding-126/skillbox.git && cd skillbox
 
 ./install.sh tvbox-optimize    # 装到 ~/.workbuddy/skills/tvbox-optimize
 ./install.sh --project         # 或装到当前项目 .workbuddy/skills/

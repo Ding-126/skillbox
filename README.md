@@ -17,7 +17,7 @@
 ## 安装
 
 ```bash
-git clone https://github.com/<your-name>/skillbox.git
+git clone https://github.com/Ding-126/skillbox.git
 cd skillbox
 
 ./install.sh                    # 全部装到 ~/.workbuddy/skills/
