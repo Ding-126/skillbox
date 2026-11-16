@@ -1,42 +1,74 @@
 #!/usr/bin/env bash
-# 安装 tvbox-optimize 到 skills 目录
-# 用法: ./install.sh            安装到 ~/.workbuddy/skills/
-#       ./install.sh --project  安装到 当前目录/.workbuddy/skills/
+# skillbox 安装器
+#
+#   ./install.sh                  全部 skill → ~/.workbuddy/skills/
+#   ./install.sh <name>...        指定 skill
+#   ./install.sh --project        改装到 当前目录/.workbuddy/skills/
+#   ./install.sh --list           列出可安装的 skill
 set -euo pipefail
 
-NAME="tvbox-optimize"
-SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SRC_ROOT="$ROOT/skills"
 
-if [ "${1:-}" = "--project" ]; then
-  DEST="$(pwd)/.workbuddy/skills"
-  SCOPE="项目级"
-else
-  DEST="${HOME}/.workbuddy/skills"
-  SCOPE="用户级"
+if [ ! -d "$SRC_ROOT" ]; then
+  echo "错误: 找不到 $SRC_ROOT，请在仓库根目录执行" >&2
+  exit 1
 fi
 
-if [ ! -f "$SRC/SKILL.md" ]; then
-  echo "错误: 找不到 $SRC/SKILL.md，请在仓库根目录执行" >&2
-  exit 1
+DEST="${HOME}/.workbuddy/skills"
+SCOPE="用户级"
+TARGETS=()
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --project) DEST="$(pwd)/.workbuddy/skills"; SCOPE="项目级" ;;
+    --list)
+      echo "可安装的 skill:"
+      for d in "$SRC_ROOT"/*/; do
+        n=$(basename "$d")
+        [ "${n#_}" != "$n" ] && continue
+        printf "  %-24s %s\n" "$n" "$(sed -n 's/^description: //p' "$d/SKILL.md" 2>/dev/null | head -1 | cut -c1-70)"
+      done
+      exit 0 ;;
+    -h|--help) sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -*) echo "未知参数: $1" >&2; exit 1 ;;
+    *) TARGETS+=("$1") ;;
+  esac
+  shift
+done
+
+# 未指定则装全部（跳过 _ 开头的模板目录）
+if [ ${#TARGETS[@]} -eq 0 ]; then
+  for d in "$SRC_ROOT"/*/; do
+    n=$(basename "$d")
+    [ "${n#_}" != "$n" ] && continue
+    TARGETS+=("$n")
+  done
 fi
 
 mkdir -p "$DEST"
 
-# 已有版本先整体备份，不做删除
-if [ -d "$DEST/$NAME" ]; then
-  BAK="$DEST/$NAME.bak.$(date +%Y%m%d-%H%M%S)"
-  mv "$DEST/$NAME" "$BAK"
-  echo "旧版本已备份: $BAK"
-fi
+for name in "${TARGETS[@]}"; do
+  src="$SRC_ROOT/$name"
+  if [ ! -f "$src/SKILL.md" ]; then
+    echo "跳过 $name: 没有 SKILL.md" >&2
+    continue
+  fi
 
-mkdir -p "$DEST/$NAME"
-cp "$SRC/SKILL.md" "$DEST/$NAME/"
-cp -R "$SRC/references" "$DEST/$NAME/"
-[ -f "$SRC/README.md" ] && cp "$SRC/README.md" "$DEST/$NAME/"
+  # 已有版本整体备份，不做删除
+  if [ -d "$DEST/$name" ]; then
+    BAK="$DEST/$name.bak.$(date +%Y%m%d-%H%M%S)"
+    mv "$DEST/$name" "$BAK"
+    echo "  $name: 旧版本备份 → $BAK"
+  fi
 
-echo "已安装（${SCOPE}）: $DEST/$NAME"
+  mkdir -p "$DEST/$name"
+  cp "$src/SKILL.md" "$DEST/$name/"
+  [ -d "$src/references" ] && cp -R "$src/references" "$DEST/$name/"
+  [ -f "$src/README.md" ] && cp "$src/README.md" "$DEST/$name/"
+  echo "  $name: 已安装"
+done
+
 echo
-echo "文件:"
-find "$DEST/$NAME" -type f | sed "s|$DEST/$NAME/|  |"
-echo
-echo "验证: 新开一个对话，说「帮我优化电视盒子」应能触发。"
+echo "目标目录（${SCOPE}）: $DEST"
+echo "验证: 新开对话，说一句自然语言（如「帮我优化电视盒子」）应能触发。"
